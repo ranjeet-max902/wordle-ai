@@ -5,6 +5,11 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseEther } from 'viem';
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from '@/lib/contract';
+import { useEffect } from 'react';
+import { toast } from 'sonner';
 
 const Nav = styled.nav`
   display: flex;
@@ -73,6 +78,14 @@ export default function Navbar() {
     refetchInterval: 60000, // Check every minute
   });
 
+  // Wagmi hooks for contract interaction
+  const { data: hash, isPending, writeContract } = useWriteContract();
+
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash,
+  });
+
+  // API mutation to update backend AFTER successful on-chain transaction
   const claimMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch('/api/claim', {
@@ -85,12 +98,29 @@ export default function Navbar() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['claim-status'] });
-      alert('Reward claimed!');
+      toast.success('Reward claimed! 100 Tokens minted to your wallet 🎉');
     },
     onError: (err) => {
-      alert('Claim failed: ' + err.message);
+      toast.error('Claim failed: ' + err.message);
     }
   });
+
+  // Effect to trigger backend update when transaction is confirmed
+  useEffect(() => {
+    if (isSuccess) {
+      claimMutation.mutate();
+    }
+  }, [isSuccess]);
+
+  const handleClaim = () => {
+    if (!address) return;
+    writeContract({
+      address: CONTRACT_ADDRESS,
+      abi: CONTRACT_ABI,
+      functionName: 'mint',
+      args: [address, parseEther('100')], // Mint 100 tokens
+    });
+  };
 
   const getButtonText = () => {
     if (!claimStatus) return 'Claim';
@@ -120,11 +150,11 @@ export default function Navbar() {
 
         {isConnected && (
           <ClaimButton
-            onClick={() => claimMutation.mutate()}
-            disabled={!claimStatus?.eligible || claimMutation.isPending}
+            onClick={() => handleClaim()}
+            disabled={!claimStatus?.eligible || isPending || isConfirming}
             $disabled={!claimStatus?.eligible}
           >
-            {claimMutation.isPending ? '...' : getButtonText()}
+            {isPending || isConfirming ? 'Minting...' : getButtonText()}
           </ClaimButton>
         )}
 

@@ -6,6 +6,7 @@ import '@rainbow-me/rainbowkit/styles.css';
 import StyledComponentsRegistry from '@/styles/registry';
 import { Providers } from '@/components/Providers';
 import Navbar from '@/components/Navbar';
+import { Toaster } from 'sonner';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -26,9 +27,22 @@ export default function RootLayout({
           <Providers>
             <Navbar />
             {children}
+            <Toaster
+              position="bottom-right"
+              theme="dark"
+              richColors
+              toastOptions={{
+                style: {
+                  background: '#1e293b',
+                  border: '1px solid #334155',
+                  color: '#fff',
+                },
+              }}
+            />
           </Providers>
         </StyledComponentsRegistry>
       </body>
     </html>
   );
 }
+

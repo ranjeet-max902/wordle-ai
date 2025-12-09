@@ -19,9 +19,11 @@ Requirements:
 - No explanations, no punctuation, just the word`;
 
     try {
+        console.log("ANDR AAYA")
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
+        console.log(text);
         const word = text.trim().toUpperCase().replace(/[^A-Z]/g, '');
 
         if (word.length !== 5) {

@@ -10,6 +10,10 @@ import { useAuth } from '@/hooks/useAuth';
 
 import { Modal } from '@/components/Modal';
 import { ChartBarIcon } from '@heroicons/react/24/outline';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseEther } from 'viem';
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from '@/lib/contract';
+import { toast } from 'sonner';
 
 const PageLayout = styled.div`
   display: flex;
@@ -187,12 +191,16 @@ interface GameStats {
     maxStreak: number;
 }
 
-const StatsDisplay = ({ stats, winRate, gameStatus, correctWord, playAgain }: {
+const StatsDisplay = ({ stats, winRate, gameStatus, correctWord, playAgain, onClaimReward, isClaiming, hasClaimed, isConnected }: {
     stats: GameStats;
     winRate: number;
     gameStatus: 'playing' | 'won' | 'lost';
     correctWord: string;
     playAgain: () => void;
+    onClaimReward: () => void;
+    isClaiming: boolean;
+    hasClaimed: boolean;
+    isConnected: boolean;
 }) => (
     <>
         <StatsGrid>
@@ -222,6 +230,17 @@ const StatsDisplay = ({ stats, winRate, gameStatus, correctWord, playAgain }: {
                         <RevealWord>{correctWord}</RevealWord>
                     </>
                 )}
+
+                {gameStatus === 'won' && isConnected && (
+                    <PlayAgainButton
+                        onClick={onClaimReward}
+                        style={{ background: hasClaimed ? '#334155' : 'linear-gradient(135deg, #fbbf24, #d97706)', color: hasClaimed ? '#94a3b8' : 'white', marginBottom: '0.5rem' }}
+                        disabled={hasClaimed || isClaiming}
+                    >
+                        {hasClaimed ? 'REWARD CLAIMED' : (isClaiming ? 'MINTING...' : 'CLAIM 50 TOKENS')}
+                    </PlayAgainButton>
+                )}
+
                 <PlayAgainButton onClick={playAgain}>
                     PLAY NEW GAME
                 </PlayAgainButton>
@@ -231,7 +250,7 @@ const StatsDisplay = ({ stats, winRate, gameStatus, correctWord, playAgain }: {
 );
 
 export default function GamePage() {
-    const { isConnected } = useAuth();
+    const { isConnected, address } = useAuth();
     const [currentGuess, setCurrentGuess] = useState('');
     const [completedGuesses, setCompletedGuesses] = useState<GuessResult[]>([]);
     const [gameStatus, setGameStatus] = useState<'playing' | 'won' | 'lost'>('playing');
@@ -239,6 +258,7 @@ export default function GamePage() {
     const [keyStates, setKeyStates] = useState<Record<string, TileState>>({});
     const [correctWord, setCorrectWord] = useState<string>('');
     const [isStatsOpen, setIsStatsOpen] = useState(false);
+    const [hasClaimed, setHasClaimed] = useState(false);
     const [stats, setStats] = useState<GameStats>({
         gamesPlayed: 0,
         gamesWon: 0,
@@ -246,6 +266,30 @@ export default function GamePage() {
         currentStreak: 0,
         maxStreak: 0,
     });
+
+    // Wagmi hooks for Reward Claiming
+    const { data: hash, isPending: isMinting, writeContract } = useWriteContract();
+
+    const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+        hash,
+    });
+
+    useEffect(() => {
+        if (isConfirmed) {
+            setHasClaimed(true);
+            toast.success('Reward Claimed! +50 Tokens 💰');
+        }
+    }, [isConfirmed]);
+
+    const handleClaimReward = () => {
+        if (!address) return;
+        writeContract({
+            address: CONTRACT_ADDRESS,
+            abi: CONTRACT_ABI,
+            functionName: 'mint',
+            args: [address, parseEther('50')], // Mint 50 tokens for winning
+        });
+    };
 
     useEffect(() => {
         const savedStats = localStorage.getItem('wordleStats');
@@ -414,6 +458,7 @@ export default function GamePage() {
         // Clear correct word locally until new one is fetched
         setCorrectWord('');
         setIsStatsOpen(false);
+        setHasClaimed(false); // Reset claim status
         localStorage.removeItem('currentWordleAnswer');
 
         // Soft reset: Refetch new word from API
@@ -459,6 +504,10 @@ export default function GamePage() {
                         gameStatus={gameStatus}
                         correctWord={correctWord}
                         playAgain={playAgain}
+                        onClaimReward={handleClaimReward}
+                        isClaiming={isMinting || isConfirming}
+                        hasClaimed={hasClaimed}
+                        isConnected={isConnected}
                     />
                 </SidePanel>
             </PageLayout>
@@ -470,6 +519,10 @@ export default function GamePage() {
                     gameStatus={gameStatus}
                     correctWord={correctWord}
                     playAgain={playAgain}
+                    onClaimReward={handleClaimReward}
+                    isClaiming={isMinting || isConfirming}
+                    hasClaimed={hasClaimed}
+                    isConnected={isConnected}
                 />
             </Modal>
         </Container>
