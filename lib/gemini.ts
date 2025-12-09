@@ -1,18 +1,22 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'mock-key');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-export async function generateWordOfTheDay() {
+export async function generateWordOfTheDay(): Promise<string> {
     if (!process.env.GEMINI_API_KEY) {
-        console.warn('No GEMINI_API_KEY found, using fallback.');
+        console.warn('No GEMINI_API_KEY found, using fallback word.');
         return 'REACT';
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // Using Gemini 2.5 Flash model
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const prompt = `Generate a random 5-letter English word for a Wordle game. 
-  Output ONLY the word in uppercase. No explanation. 
-  Ensure it is a common dictionary word.`;
+    const prompt = `Generate a random common 5-letter English word suitable for a Wordle game.
+Requirements:
+- Must be exactly 5 letters
+- Must be a common, recognizable English word (not obscure)
+- Output ONLY the word in UPPERCASE
+- No explanations, no punctuation, just the word`;
 
     try {
         const result = await model.generateContent(prompt);
@@ -21,12 +25,15 @@ export async function generateWordOfTheDay() {
         const word = text.trim().toUpperCase().replace(/[^A-Z]/g, '');
 
         if (word.length !== 5) {
-            console.error('Gemini returned invalid length:', word);
-            return 'REACT'; // Fallback
+            console.error('Gemini returned invalid word length:', word);
+            return 'CRANE'; // Fallback - good Wordle starting word
         }
+
+        console.log('Generated word of the day:', word);
         return word;
     } catch (error) {
         console.error('Gemini generation failed:', error);
-        return 'REACT'; // Fallback
+        return 'CRANE'; // Fallback
     }
 }
+

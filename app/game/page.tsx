@@ -254,12 +254,13 @@ export default function GamePage() {
         }
     }, []);
 
-    const { data: wordData, isLoading } = useQuery({
+    const { data: wordData, isLoading, refetch } = useQuery({
         queryKey: ['word-of-day'],
         queryFn: async () => {
             const res = await fetch('/api/word-of-day');
             return res.json();
-        }
+        },
+        refetchOnWindowFocus: false, // Prevent unwanted refetches
     });
 
     useEffect(() => {
@@ -268,11 +269,15 @@ export default function GamePage() {
                 const word = Buffer.from(wordData.wordId, 'base64').toString('utf-8');
                 setCorrectWord(word);
                 localStorage.setItem('currentWordleAnswer', word);
+                // Debugging: Log the AI word to console
+                console.log('%c AI Suggested Word: ' + word, 'background: #22c55e; color: black; padding: 4px; border-radius: 4px;');
             } catch (e) {
                 console.error('Failed to decode word');
             }
         }
     }, [wordData]);
+
+
 
     const submitMutation = useMutation({
         mutationFn: async ({ guess, wordId }: { guess: string, wordId: string }) => {
@@ -406,10 +411,13 @@ export default function GamePage() {
         setGameStatus('playing');
         setMessage('');
         setKeyStates({});
+        // Clear correct word locally until new one is fetched
         setCorrectWord('');
         setIsStatsOpen(false);
         localStorage.removeItem('currentWordleAnswer');
-        window.location.reload();
+
+        // Soft reset: Refetch new word from API
+        refetch();
     };
 
     if (isLoading) return <Container><StatusMessage>Loading...</StatusMessage></Container>;

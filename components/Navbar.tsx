@@ -109,9 +109,14 @@ export default function Navbar() {
     <Nav>
       <Logo href="/">Wordle AI</Logo>
       <Links>
-        <NavLink href="/history">History</NavLink>
-        <NavLink href="#">Faucet</NavLink>
-        <NavLink href="#">Explorer</NavLink>
+        {/* <NavLink href="/history">History</NavLink> */}
+        <NavLink href="https://cloud.google.com/application/web3/faucet/story/aeneid" target="_blank">Faucet</NavLink>
+        <NavLink
+          href={isConnected && address ? `https://aeneid.storyscan.io/address/${address}?tab=index` : '#'}
+          target={isConnected ? "_blank" : undefined}
+        >
+          Explorer
+        </NavLink>
 
         {isConnected && (
           <ClaimButton
